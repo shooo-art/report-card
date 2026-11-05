@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>月次報告カードメーカー</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Cormorant+Garamond:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Montserrat:wght@500;600;700&display=swap">
 <style>
 /* Layout: 左に入力フォーム、右にカードプレビュー（スマホでは縦積み） */
 :root{
   --bg:#f1f3f6; --panel:#ffffff; --fg:#1a2233; --muted:#5b6475; --line:#d6dbe3;
   --accent:#1c2a44; --brass:#a9844e; --field:#f6f7fa;
-  --serif:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --serif:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
   --sans:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -85,22 +85,23 @@ const ms=$('month');
 for(let m=1;m<=12;m++){const o=document.createElement('option');o.value=m;o.textContent=m+'月';ms.appendChild(o)}
 ms.value=((new Date().getMonth()+11)%12)||12; // 前月を初期値に
 
-const W=1080,H=1500;
-const C={paper:'#f4f2ec',ink:'#1a2233',green:'#1c2a44',brass:'#a9844e',soft:'#5b6475',tint:'#e6eaf1',line:'#cfc6b4'};
-const SERIF='"Zen Old Mincho","Hiragino Mincho ProN",serif',SANS='"Zen Kaku Gothic New","Hiragino Sans",sans-serif',LAT='"Cormorant Garamond",Georgia,serif';
+const W=1080;
+const C={ink:'#16233d',soft:'#5d6b82',blue:'#1f5ad6',navy:'#0d2c74',line:'#d9e3f1',
+  tipB:'#eaf2fe',tipBLine:'#cfdff8',tipBIcon:'#d4e5fd',red:'#e2474d',tipR:'#fff1f1',tipRLine:'#f6d2d3',tipRIcon:'#ffdcdd',gold:'#f6c645'};
+const SERIF='"Zen Kaku Gothic New","Hiragino Sans",sans-serif',SANS=SERIF,LAT='Montserrat,"Zen Kaku Gothic New","Hiragino Sans",sans-serif';
 
-function wrap(ctx,text,x,y,maxW,lh){
+function wrap(ctx,text,x,y,maxW,lh,dry){
   let line='';const lines=[];
   for(const ch of text){
     if(ch==='\n'){lines.push(line);line='';continue}
     const t=line+ch;
     if(ctx.measureText(t).width>maxW && line){
-      if('、。」）'.includes(ch)){lines.push(t);line='';continue} // 句読点を行頭にしない
+      if('、。」）'.includes(ch)){lines.push(t);line='';continue}
       lines.push(line);line=ch;
     }else line=t;
   }
   if(line)lines.push(line);
-  lines.forEach((l,i)=>ctx.fillText(l,x,y+i*lh));
+  if(!dry)lines.forEach((l,i)=>ctx.fillText(l,x,y+i*lh));
   return lines.length*lh;
 }
 function rr(ctx,x,y,w,h,r){ctx.beginPath();if(ctx.roundRect){ctx.roundRect(x,y,w,h,r);return}ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
@@ -110,72 +111,125 @@ function msg(){
   return {n,m,c};
 }
 
+/* icons */
+function iconChart(x,cx,cy,s){ // header badge
+  const g=x.createLinearGradient(cx-s/2,cy-s/2,cx+s/2,cy+s/2);g.addColorStop(0,'#3b7bf0');g.addColorStop(1,C.navy);
+  x.fillStyle=g;rr(x,cx-s/2,cy-s/2,s,s,s*.24);x.fill();
+  x.fillStyle='#fff';const bw=s*.13,base=cy+s*.26;
+  [[.30,-.22],[.48,0],[.66,.22]].forEach(([h,o])=>{x.fillRect(cx+o*s-bw/2,base-h*s,bw,h*s)});
+}
+function iconCalendar(x,cx,cy,s){
+  x.save();x.strokeStyle='#fff';x.fillStyle='#fff';x.lineWidth=s*.07;x.lineJoin='round';
+  rr(x,cx-s/2,cy-s*.38,s,s*.86,s*.12);x.stroke();
+  x.fillRect(cx-s/2,cy-s*.38,s,s*.2);
+  x.lineCap='round';[-.25,.25].forEach(o=>{x.beginPath();x.moveTo(cx+o*s,cy-s*.5);x.lineTo(cx+o*s,cy-s*.28);x.stroke()});
+  const d=s*.11;for(let r=0;r<2;r++)for(let c=0;c<3;c++)x.fillRect(cx-s*.3+c*s*.24,cy-s*.05+r*s*.22,d,d);
+  x.restore();
+}
+function iconGrowth(x,cx,cy,s){
+  x.save();
+  const bw=s*.16,base=cy+s*.45;
+  [.22,.38,.56,.78].forEach((h,i)=>{x.fillStyle=`rgba(255,255,255,${.35+i*.18})`;rr(x,cx-s*.48+i*s*.25,base-h*s,bw,h*s,4);x.fill()});
+  x.strokeStyle=C.gold;x.fillStyle=C.gold;x.lineWidth=s*.06;x.lineCap='round';x.lineJoin='round';
+  x.beginPath();x.moveTo(cx-s*.5,cy+s*.12);x.quadraticCurveTo(cx,cy,cx+s*.36,cy-s*.42);x.stroke();
+  x.beginPath();x.moveTo(cx+s*.48,cy-s*.56);x.lineTo(cx+s*.22,cy-s*.5);x.lineTo(cx+s*.42,cy-s*.3);x.closePath();x.fill();
+  x.restore();
+}
+function iconBulb(x,cx,cy,r,col){
+  x.save();x.strokeStyle=col;x.lineWidth=r*.11;x.lineCap='round';x.lineJoin='round';
+  x.beginPath();x.arc(cx,cy-r*.12,r*.38,Math.PI*.8,Math.PI*2.2);x.lineTo(cx+r*.17,cy+r*.36);x.lineTo(cx-r*.17,cy+r*.36);x.closePath();x.stroke();
+  x.beginPath();x.moveTo(cx-r*.15,cy+r*.52);x.lineTo(cx+r*.15,cy+r*.52);x.stroke();
+  [[-.75,-.12],[.75,-.12],[0,-.82],[-.55,-.66],[.55,-.66]].forEach(([dx,dy])=>{const a=Math.atan2(dy,dx);x.beginPath();x.moveTo(cx+Math.cos(a)*r*.56,cy-r*.12+Math.sin(a)*r*.56);x.lineTo(cx+Math.cos(a)*r*.72,cy-r*.12+Math.sin(a)*r*.72);x.stroke()});
+  x.restore();
+}
+function iconTarget(x,cx,cy,r,col){
+  x.save();x.strokeStyle=col;x.fillStyle=col;x.lineWidth=r*.1;
+  [.5,.3].forEach(k=>{x.beginPath();x.arc(cx,cy,r*k,0,Math.PI*2);x.stroke()});
+  x.beginPath();x.arc(cx,cy,r*.1,0,Math.PI*2);x.fill();
+  x.lineCap='round';x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+r*.55,cy-r*.55);x.stroke();
+  x.beginPath();x.moveTo(cx+r*.5,cy-r*.72);x.lineTo(cx+r*.72,cy-r*.5);x.stroke();
+  x.restore();
+}
+
 function draw(){
   const {n,m,c}=msg();const sender=$('sender').value.trim();
-  const cv=document.createElement('canvas');lastCanvas=cv;cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  const work=document.createElement('canvas');work.width=W;work.height=2400;const x=work.getContext('2d');
   x.textBaseline='alphabetic';
-  // paper
-  x.fillStyle=C.paper;x.fillRect(0,0,W,H);
-  // inner frame
-  x.strokeStyle=C.line;x.lineWidth=2;x.strokeRect(36,36,W-72,H-72);
-  x.strokeStyle=C.brass;x.lineWidth=1;x.strokeRect(48,48,W-96,H-96);
+  const L=84,R=W-84,CW=R-L;
 
-  const L=110,R=W-110,CW=R-L;
-  // eyebrow
-  x.fillStyle=C.brass;x.font=`600 30px ${LAT}`;
-  x.letterSpacing='8px';x.fillText('MONTHLY  REPORT',L,140);x.letterSpacing='0px';
-  x.textAlign='right';x.font=`600 30px ${LAT}`;x.fillText(`No. ${String(m).padStart(2,'0')}`,R,140);x.textAlign='left';
-  x.strokeStyle=C.brass;x.lineWidth=1.5;x.beginPath();x.moveTo(L,165);x.lineTo(R,165);x.stroke();
+  // header
+  iconChart(x,L+36,112,72);
+  x.fillStyle=C.navy;x.font=`700 38px ${LAT}`;x.fillText('Monthly Report',L+96,126);
+  let hw=x.measureText('Monthly Report').width;
+  x.fillStyle=C.line;x.fillRect(L+96+hw+22,96,3,38);
+  x.fillStyle=C.soft;x.font=`500 30px ${SANS}`;x.fillText('月次レポート',L+96+hw+46,124);
+  x.fillStyle=C.line;x.fillRect(L,180,CW,2);
 
   // name
-  x.fillStyle=C.ink;x.font=`700 68px ${SERIF}`;
-  let nm=n;while(x.measureText(nm+' さま').width>CW && nm.length>1)nm=nm.slice(0,-1);
-  x.fillText(nm,L,275);
-  const nw=x.measureText(nm).width;x.font=`500 44px ${SERIF}`;x.fillText(' さま',L+nw,275);
-  x.font=`500 34px ${SANS}`;x.fillStyle=C.soft;x.fillText('いつもありがとうございます。',L,345);
+  x.fillStyle=C.ink;x.font=`700 76px ${SANS}`;
+  let nm=n;while(x.measureText(nm).width>CW-110 && nm.length>1)nm=nm.slice(0,-1);
+  x.fillText(nm,L,292);const nw=x.measureText(nm).width;
+  x.font=`500 40px ${SANS}`;x.fillText(' さま',L+nw,292);
+  x.fillStyle=C.soft;x.font=`500 34px ${SANS}`;x.fillText('いつもありがとうございます。',L,358);
 
-  // count block
-  const by=400,bh=360;
-  x.fillStyle=C.green;rr(x,L,by,CW,bh,8);x.fill();
-  x.fillStyle='#d9c9a6';x.font=`500 34px ${SANS}`;x.textAlign='center';
-  x.fillText(`${m}月の新規報告件数`,W/2,by+80);
-  x.fillStyle='#ffffff';x.font=`600 210px ${LAT}`;
-  const cw=x.measureText(c).width;x.font=`700 54px ${SERIF}`;const kw=x.measureText('件').width;
-  const sx=W/2-(cw+12+kw)/2;x.textAlign='left';
-  x.font=`600 210px ${LAT}`;x.fillText(c,sx,by+275);
-  x.font=`700 54px ${SERIF}`;x.fillText('件',sx+cw+12,by+275);
-  x.fillStyle='#d9c9a6';x.font=`500 26px ${SANS}`;x.textAlign='center';x.fillText('でした',W/2,by+325);x.textAlign='left';
+  // count panel
+  const by=410,bh=320;
+  x.save();x.shadowColor='rgba(13,44,116,.28)';x.shadowBlur=40;x.shadowOffsetY=16;
+  const g=x.createLinearGradient(L,by,R,by+bh);g.addColorStop(0,'#2a6ff0');g.addColorStop(1,C.navy);
+  x.fillStyle=g;rr(x,L,by,CW,bh,32);x.fill();x.restore();
+  // soft glow
+  x.save();rr(x,L,by,CW,bh,32);x.clip();
+  x.fillStyle='rgba(255,255,255,.07)';x.beginPath();x.arc(R-60,by+20,200,0,Math.PI*2);x.fill();
+  x.beginPath();x.arc(L+40,by+bh+40,150,0,Math.PI*2);x.fill();x.restore();
+  iconCalendar(x,L+120,by+bh/2+8,110);
+  // pill
+  x.font=`700 34px ${SANS}`;const pt=`${m}月の新規報告件数`,pw=x.measureText(pt).width+64;
+  x.fillStyle='rgba(255,255,255,.16)';rr(x,W/2-pw/2,by+36,pw,64,32);x.fill();
+  x.fillStyle='#fff';x.textAlign='center';x.fillText(pt,W/2,by+80);x.textAlign='left';
+  // number
+  x.font=`700 190px ${LAT}`;const cw=x.measureText(c).width;x.font=`700 70px ${SANS}`;const kw=x.measureText('件').width;
+  const sx=W/2-(cw+14+kw)/2;x.fillStyle='#fff';
+  x.font=`700 190px ${LAT}`;x.fillText(c,sx,by+280);
+  x.font=`700 70px ${SANS}`;x.fillText('件',sx+cw+14,by+280);
+  // きらめき線
+  {const ox=sx+cw+14+kw+14,oy=by+205;x.save();x.strokeStyle='rgba(205,224,255,.95)';x.lineWidth=8;x.lineCap='round';
+   [[[8,-18],[20,-66]],[[30,-6],[82,-58]],[[38,22],[90,10]]].forEach(([a,b])=>{x.beginPath();x.moveTo(ox+a[0],oy+a[1]);x.lineTo(ox+b[0],oy+b[1]);x.stroke()});x.restore();}
 
   // message
-  let y=by+bh+85;
+  let y=by+bh+92;
   x.fillStyle=C.ink;x.font=`500 32px ${SANS}`;
-  y+=wrap(x,'条件変更はいつでも可能ですので、遠慮なくお声掛けください。',L,y,CW,50);
-  y+=30;
+  y+=wrap(x,'条件のご変更はいつでも承っております。\nお気軽にお声掛け下さい。',L,y,CW,52);
+  y+=28;
 
   // tips
   const tips=[
-    ['少ないと感じている方','利回りを少し下げるだけで件数の増加が望めます。条件を緩和して、業者様とのパイプ作りをするのもおすすめです。'],
-    ['多いと感じている方','エリアを市町村単位に絞ったり、利回りを少しきつめに設定すると、精査がしやすくなりおすすめです。']
+    {h:'少ないと感じている方',t:'利回りを少し下げるだけで件数の増加が望めます。\n条件を緩和して、業者様とのパイプ作りをするのもおすすめです。',col:C.blue,bg:C.tipB,bd:C.tipBLine,ic:C.tipBIcon,icon:iconBulb},
+    {h:'多いと感じている方',t:'エリアを市区町村単位に絞ったり、利回りの条件を少し引き上げたりすることで、より精度の高い検索が可能になります。',col:C.red,bg:C.tipR,bd:C.tipRLine,ic:C.tipRIcon,icon:iconTarget}
   ];
-  for(const [h,t] of tips){
-    x.font=`400 28px ${SANS}`;
-    // measure height
-    const tmp=document.createElement('canvas').getContext('2d');tmp.font=x.font;
-    let lines=1,line='';for(const ch of t){const s=line+ch;if(tmp.measureText(s).width>CW-80&&line){lines++;line=ch}else line=s}
-    const bh2=90+lines*44+20;
-    x.fillStyle=C.tint;rr(x,L,y,CW,bh2,8);x.fill();
-    x.fillStyle=C.brass;x.fillRect(L,y+28,6,40);
-    x.fillStyle=C.green;x.font=`700 30px ${SANS}`;x.fillText(h,L+40,y+60);
-    x.fillStyle=C.ink;x.font=`400 28px ${SANS}`;wrap(x,t,L+40,y+108,CW-80,44);
-    y+=bh2+24;
+  const TX=L+140,TW=R-28-TX;
+  for(const tp of tips){
+    x.font=`400 25px ${SANS}`;
+    const th=wrap(x,tp.t,0,0,TW,44,true);
+    const bh2=Math.max(96+th+30,180);
+    x.fillStyle=tp.bg;rr(x,L,y,CW,bh2,26);x.fill();
+    x.strokeStyle=tp.bd;x.lineWidth=2;rr(x,L+1,y+1,CW-2,bh2-2,25);x.stroke();
+    x.fillStyle=tp.ic;x.beginPath();x.arc(L+78,y+bh2/2,48,0,Math.PI*2);x.fill();
+    tp.icon(x,L+78,y+bh2/2+4,58,tp.col);
+    x.fillStyle=tp.col;x.font=`700 34px ${SANS}`;x.fillText(tp.h,TX,y+70);
+    x.fillStyle=C.ink;x.font=`400 25px ${SANS}`;wrap(x,tp.t,TX,y+120,TW,42);
+    y+=bh2+26;
   }
+  y+=10;
+  if(sender){x.textAlign='right';x.fillStyle=C.soft;x.font=`500 28px ${SANS}`;x.fillText(sender,R,y+40);x.textAlign='left';y+=70}
+  const H=y+50;
 
-  // footer
-  x.strokeStyle=C.line;x.lineWidth=1;x.beginPath();x.moveTo(L,H-150);x.lineTo(R,H-150);x.stroke();
-  x.fillStyle=C.soft;x.font=`500 26px ${SANS}`;
-  x.fillText(`${m}月末 締め`,L,H-100);
-  if(sender){x.textAlign='right';x.fillStyle=C.ink;x.font=`500 28px ${SERIF}`;x.fillText(sender,R,H-100);x.textAlign='left'}
-
+  // compose final with background
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const f=cv.getContext('2d');
+  lastCanvas=cv;
+  const bg=f.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#ffffff');bg.addColorStop(1,'#f1f6fd');
+  f.fillStyle=bg;f.fillRect(0,0,W,H);
+  f.fillStyle='rgba(42,111,240,.06)';f.beginPath();f.arc(W-40,40,220,0,Math.PI*2);f.fill();
+  f.drawImage(work,0,0);
   $('out').src=cv.toDataURL('image/png');
 }
 
@@ -205,14 +259,14 @@ $('save').addEventListener('click',()=>{
 
 $('copy').addEventListener('click',()=>{
   const {n,m,c}=msg();
-  const s=`${n}さま\n\nいつもありがとうございます。\n${m}月の新規報告件数は${c}件でした。\n\n条件変更はいつでも可能ですので、遠慮なくお声掛けください。\n\n【少ないと感じている方】\n利回りを少し下げるだけで件数の増加が望めます。条件を緩和して、業者様とのパイプ作りをするのもおすすめです。\n\n【多いと感じている方】\nエリアを市町村単位に絞ったり、利回りを少しきつめに設定すると、精査がしやすくなりおすすめです。`;
+  const s=`${n}さま\n\nいつもありがとうございます。\n${m}月の新規報告件数は${c}件でした。\n\n条件のご変更はいつでも承っております。\nお気軽にお声掛け下さい。\n\n【少ないと感じている方】\n利回りを少し下げるだけで件数の増加が望めます。\n条件を緩和して、業者様とのパイプ作りをするのもおすすめです。\n\n【多いと感じている方】\nエリアを市区町村単位に絞ったり、利回りの条件を少し引き上げたりすることで、より精度の高い検索が可能になります。`;
   const done=()=>{$('toast').textContent='文面をコピーしました';setTimeout(()=>$('toast').textContent='',2500)};
   try{navigator.clipboard.writeText(s).then(done).catch(()=>{$('toast').textContent='コピーできませんでした。お手数ですが手動で選択してください'})}catch(e){}
 });
 
 (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>Promise.all([
-  document.fonts.load(`700 68px "Zen Old Mincho"`),document.fonts.load(`500 32px "Zen Kaku Gothic New"`),
-  document.fonts.load(`700 30px "Zen Kaku Gothic New"`),document.fonts.load(`600 210px "Cormorant Garamond"`)
+  document.fonts.load(`700 68px "Zen Kaku Gothic New"`),document.fonts.load(`500 32px "Zen Kaku Gothic New"`),
+  document.fonts.load(`700 30px "Zen Kaku Gothic New"`),document.fonts.load(`700 190px Montserrat`),document.fonts.load(`500 30px Montserrat`)
 ]).catch(()=>{})).then(draw);
 draw();
 </script>
